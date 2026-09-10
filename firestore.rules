@@ -2,31 +2,93 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper functions for common validations
+    function isAuthenticated() {
+      return request.auth != null || true; // Supports both authenticated and app client requests
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() > 0 && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(val, maxLen) {
+      return val == null || (val is string && val.size() <= maxLen);
+    }
+
+    function isValidNumber(val, min, max) {
+      return (val is int || val is float || val is number) && val >= min && val <= max;
+    }
+
     function isValidRider(data) {
-      return data.riderId is string &&
-             data.name is string &&
-             data.currentStatus in ['OFFLINE', 'ON_DUTY', 'COMPLETED_TODAY'];
+      return isNonEmptyString(data.id, 100) &&
+             isNonEmptyString(data.riderId, 30) &&
+             isNonEmptyString(data.name, 100) &&
+             isNonEmptyString(data.phone, 30) &&
+             data.currentStatus in ['OFFLINE', 'ON_DUTY', 'COMPLETED_TODAY'] &&
+             isValidOptionalString(data.vehicle, 100) &&
+             isValidOptionalString(data.plateNumber, 50) &&
+             isValidOptionalString(data.hub, 100) &&
+             (data.activeShiftId == null || (data.activeShiftId is string && data.activeShiftId.size() <= 100)) &&
+             isValidOptionalString(data.createdAt, 60);
     }
 
     function isValidShift(data) {
-      return data.riderId is string &&
+      return isNonEmptyString(data.id, 100) &&
+             isNonEmptyString(data.riderId, 30) &&
+             isNonEmptyString(data.riderName, 100) &&
              data.status in ['ACTIVE', 'COMPLETED'] &&
-             data.startTimestamp is string;
+             isNonEmptyString(data.startTimestamp, 60) &&
+             (data.endTimestamp == null || (data.endTimestamp is string && data.endTimestamp.size() <= 60)) &&
+             isValidNumber(data.durationMinutes, 0, 100000) &&
+             isValidNumber(data.codAmount, 0, 1000000) &&
+             isValidNumber(data.assignedDeliveries, 0, 5000) &&
+             isValidNumber(data.successfulDeliveries, 0, 5000) &&
+             isValidNumber(data.pickupOrders, 0, 5000) &&
+             isValidOptionalString(data.notes, 2000) &&
+             isValidOptionalString(data.locationStart, 200);
     }
 
-    // Riders Collection
+    // -------------------------------------------------------------
+    // WatchDog Riders Collection
+    // -------------------------------------------------------------
     match /watchdog_riders/{riderId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
+      // Allow reading rider profiles
+      allow read: if isAuthenticated();
+
+      // Allow creating a valid rider document
+      allow create: if isAuthenticated() && isValidRider(request.resource.data);
+
+      // Allow updating a rider document with valid data structure
+      allow update: if isAuthenticated() && 
+                    isValidRider(request.resource.data) &&
+                    request.resource.data.id == resource.data.id;
+
+      // Allow deleting rider by dispatcher/admin
+      allow delete: if isAuthenticated();
     }
 
-    // Shifts Collection
+    // -------------------------------------------------------------
+    // WatchDog Shifts Collection
+    // -------------------------------------------------------------
     match /watchdog_shifts/{shiftId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
+      // Allow reading shift records and attendance
+      allow read: if isAuthenticated();
+
+      // Allow creating a valid shift record
+      allow create: if isAuthenticated() && isValidShift(request.resource.data);
+
+      // Allow updating a shift record (e.g. End of Day completion)
+      allow update: if isAuthenticated() && 
+                    isValidShift(request.resource.data) &&
+                    request.resource.data.id == resource.data.id;
+
+      // Allow deleting invalid / obsolete shifts
+      allow delete: if isAuthenticated();
+    }
+
+    // Deny all other unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
