@@ -491,6 +491,14 @@ export const AdminPortal = {
       });
     }
 
+    // Details Button in Live Roster
+    container.querySelectorAll(".btn-quick-view-rider").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const riderId = btn.getAttribute("data-id");
+        this.openEditRiderModal(riderId);
+      });
+    });
+
     // Edit Rider Buttons
     container.querySelectorAll(".btn-edit-rider").forEach(btn => {
       btn.addEventListener("click", () => {
