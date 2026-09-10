@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidRider(data) {
+      return data.riderId is string &&
+             data.name is string &&
+             data.currentStatus in ['OFFLINE', 'ON_DUTY', 'COMPLETED_TODAY'];
+    }
+
+    function isValidShift(data) {
+      return data.riderId is string &&
+             data.status in ['ACTIVE', 'COMPLETED'] &&
+             data.startTimestamp is string;
+    }
+
+    // Riders Collection
+    match /watchdog_riders/{riderId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // Shifts Collection
+    match /watchdog_shifts/{shiftId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+  }
+}

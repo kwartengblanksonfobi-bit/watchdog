@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>WatchDog | Rider Fleet Dispatch & Shift Management</title>
+  <meta name="description" content="WatchDog is a Progressive Web App for managing riders, real-time shift timestamps, Cash on Delivery (COD), deliveries, and pickups.">
+  <meta name="theme-color" content="#6B1724">
+
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WatchDog">
+  <link rel="apple-touch-icon" href="./assets/logo.svg">
+
+  <!-- Favicon & Web Manifest -->
+  <link rel="icon" type="image/svg+xml" href="./assets/logo.svg">
+  <link rel="manifest" href="./manifest.webmanifest">
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/rider.css">
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="brand-container" id="brand-home-trigger">
+      <img src="./assets/logo.svg" alt="WatchDog Logo" class="brand-logo">
+      <div class="brand-info">
+        <h1>WATCHDOG <span class="brand-badge">FLEET</span></h1>
+        <p>Rider Hub & Shift Dispatch</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Role Switcher Pill (Visible when logged in) -->
+      <div class="role-pill-switch" id="role-switcher-container" style="display: none;">
+        <button class="role-pill-btn active" data-role="RIDER">
+          🛵 Rider
+        </button>
+        <button class="role-pill-btn" data-role="ADMIN">
+          🛡️ Admin
+        </button>
+      </div>
+
+      <!-- User Chip & Logout -->
+      <div class="user-chip" id="header-user-chip" style="display: none;">
+        <div class="user-chip-avatar" id="header-user-avatar">R</div>
+        <div class="user-chip-name" id="header-user-name">User</div>
+        <button class="logout-icon-btn" id="btn-header-logout" title="Sign Out">
+          🚪
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Status Bar -->
+  <div class="status-ticker">
+    <div>
+      <span class="live-dot"></span>
+      <span>Live System: <strong>Firebase Cloud Real-Time Active</strong></span>
+    </div>
+    <div style="opacity: 0.85; font-size: 10.5px;">
+      WatchDog PWA v1.0
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="app-main">
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-banner" id="pwa-install-banner" style="display: none;">
+      <div class="pwa-install-info">
+        <img src="./assets/logo.svg" alt="WatchDog">
+        <div>
+          <div class="pwa-install-title">Install WatchDog App</div>
+          <div class="pwa-install-sub">Fast access for riders on home screen with offline support</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary btn-sm" id="btn-pwa-install">Install App</button>
+        <button class="btn btn-ghost btn-sm" id="btn-pwa-dismiss" style="color: #fff;">✕</button>
+      </div>
+    </div>
+
+    <!-- Login Container -->
+    <div id="auth-container"></div>
+
+    <!-- Active Portal Content (Rider or Admin) -->
+    <div id="portal-content" style="display: none;"></div>
+  </main>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: RIDER END OF DAY (EOD) RECONCILIATION MODAL               -->
+  <!-- ================================================================= -->
+  <div class="modal-backdrop" id="modal-end-day">
+    <div class="modal-card">
+      <div class="modal-header-burgundy">
+        <h3>🏁 End Day - Shift Reconciliation</h3>
+        <button type="button" class="modal-close-btn modal-close-trigger">&times;</button>
+      </div>
+
+      <form id="eod-modal-form">
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 18px;">
+            Please complete your End-of-Day report before closing your shift. All collected COD and delivery counts will be transmitted directly to dispatch.
+          </p>
+
+          <!-- 1. All COD Under Care -->
+          <div class="form-group">
+            <label class="form-label" for="eod-form-cod">
+              💰 Total Cash on Delivery (COD) in Care / Collected <span class="required">*</span>
+            </label>
+            <div class="eod-currency-input-wrap">
+              <span class="eod-currency-symbol">GH₵</span>
+              <input 
+                type="number" 
+                id="eod-form-cod" 
+                class="form-input" 
+                placeholder="0.00" 
+                step="0.01" 
+                min="0" 
+                required
+              >
+            </div>
+            <div class="form-hint">Enter the total physical cash amount in your custody from completed orders.</div>
+          </div>
+
+          <!-- 2 & 3. Assigned and Successful Deliveries Grid -->
+          <div class="metrics-input-grid">
+            <div class="metric-field-box">
+              <label class="form-label" for="eod-form-assigned">
+                📦 Assigned Deliveries <span class="required">*</span>
+              </label>
+              <input 
+                type="number" 
+                id="eod-form-assigned" 
+                class="form-input" 
+                placeholder="0" 
+                min="0" 
+                required
+              >
+              <div class="form-hint" style="text-align: center;">Total assigned today</div>
+            </div>
+
+            <div class="metric-field-box">
+              <label class="form-label" for="eod-form-successful">
+                ✅ Successful Deliveries <span class="required">*</span>
+              </label>
+              <input 
+                type="number" 
+                id="eod-form-successful" 
+                class="form-input" 
+                placeholder="0" 
+                min="0" 
+                required
+              >
+              <div class="form-hint" style="text-align: center;">Delivered to clients</div>
+            </div>
+          </div>
+
+          <!-- 4. Pickup Orders -->
+          <div class="form-group" style="margin-top: 14px;">
+            <div class="metric-field-box">
+              <label class="form-label" for="eod-form-pickups">
+                🔄 Pickup Orders Collected <span class="required">*</span>
+              </label>
+              <input 
+                type="number" 
+                id="eod-form-pickups" 
+                class="form-input" 
+                placeholder="0" 
+                min="0" 
+                required
+              >
+              <div class="form-hint" style="text-align: center;">Merchant & return items picked up</div>
+            </div>
+          </div>
+
+          <!-- Live Calculation Summary Box -->
+          <div class="eod-calc-preview">
+            <div>
+              <span>Completion Rate:</span>
+              <strong id="eod-success-rate-val" style="color: #065F46; font-size: 14px; margin-left: 4px;">0%</strong>
+            </div>
+            <div>
+              <span>Unfinished/Failed:</span>
+              <strong id="eod-pending-val" style="color: var(--burgundy-700); font-size: 14px; margin-left: 4px;">0</strong>
+            </div>
+          </div>
+
+          <!-- 5. Remarks & Notes -->
+          <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label" for="eod-form-notes">
+              📝 Shift Notes / Incident Remarks (Optional)
+            </label>
+            <textarea 
+              id="eod-form-notes" 
+              class="form-textarea" 
+              rows="2" 
+              placeholder="e.g. 1 package cancelled by client, heavy rain in East Legon..."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost modal-close-trigger">
+            Cancel
+          </button>
+          <button type="submit" id="btn-submit-eod" class="btn btn-primary">
+            Submit & Close Day
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: ADMIN CREATE / EDIT RIDER ACCOUNT                         -->
+  <!-- ================================================================= -->
+  <div class="modal-backdrop" id="modal-rider-crud">
+    <div class="modal-card">
+      <div class="modal-header-burgundy">
+        <h3 id="rider-modal-title">➕ Register Rider Account</h3>
+        <button type="button" class="modal-close-btn modal-close-trigger">&times;</button>
+      </div>
+
+      <form id="rider-crud-form">
+        <div class="modal-body">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label">Rider ID <span class="required">*</span></label>
+              <input type="text" id="rider-form-id-input" class="form-input" placeholder="e.g. RD-105" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password / PIN <span class="required">*</span></label>
+              <input type="text" id="rider-form-password" class="form-input" placeholder="rider123" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="required">*</span></label>
+            <input type="text" id="rider-form-name" class="form-input" placeholder="e.g. Samuel Boateng" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Phone Number <span class="required">*</span></label>
+            <input type="tel" id="rider-form-phone" class="form-input" placeholder="+233 24 000 0000" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label">Vehicle Type</label>
+              <select id="rider-form-vehicle" class="form-select">
+                <option value="Motorbike">Motorbike</option>
+                <option value="Delivery Van">Delivery Van</option>
+                <option value="Bicycle">Bicycle</option>
+                <option value="Electric Scooter">Electric Scooter</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Number Plate</label>
+              <input type="text" id="rider-form-plate" class="form-input" placeholder="M-24-GR-1020">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assigned Hub / Station</label>
+            <select id="rider-form-hub" class="form-select">
+              <option value="Central Hub - Accra">Central Hub - Accra</option>
+              <option value="East Airport Hub">East Airport Hub</option>
+              <option value="Tema Logistics Yard">Tema Logistics Yard</option>
+              <option value="Kumasi Central Hub">Kumasi Central Hub</option>
+              <option value="Takoradi Station">Takoradi Station</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost modal-close-trigger">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Rider Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: DELETE RIDER CONFIRMATION                                 -->
+  <!-- ================================================================= -->
+  <div class="modal-backdrop" id="modal-delete-rider">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header-burgundy" style="background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);">
+        <h3>🗑️ Delete Rider Account</h3>
+        <button type="button" class="modal-close-btn modal-close-trigger">&times;</button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div style="font-size: 40px; margin-bottom: 12px;">⚠️</div>
+        <h4 style="font-size: 16px; color: var(--burgundy-900); margin-bottom: 8px;">Are you sure you want to delete this rider?</h4>
+        <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 14px;">
+          This will remove account access for <strong id="delete-rider-name-display">Rider</strong>. This action cannot be undone.
+        </p>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button type="button" class="btn btn-ghost modal-close-trigger">Cancel</button>
+        <button type="button" id="btn-confirm-delete-rider" class="btn btn-danger">Confirm Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main JavaScript App Entry -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "watchdog_shifts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "riderId", "order": "ASCENDING" },
+        { "fieldPath": "startTimestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "watchdog_shifts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "startTimestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "watchdog_shifts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "startTimestamp", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

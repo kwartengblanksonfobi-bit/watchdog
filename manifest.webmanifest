@@ -1,0 +1,31 @@
+{
+  "name": "WatchDog - Rider & Fleet Dispatch",
+  "short_name": "WatchDog",
+  "description": "Progressive Web App for Rider Dispatch, Live Shift Tracking, and End-of-Day Reconciliation",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FAF7F5",
+  "theme_color": "#6B1724",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./assets/logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Rider Portal",
+      "url": "./index.html?role=rider",
+      "description": "Open Rider Shift Portal"
+    },
+    {
+      "name": "Admin Portal",
+      "url": "./index.html?role=admin",
+      "description": "Open Admin Dashboard"
+    }
+  ]
+}

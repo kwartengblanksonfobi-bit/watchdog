@@ -1,0 +1,417 @@
+/* ==========================================================================
+   WATCHDOG PWA - RIDER PORTAL STYLES (Mobile-First Experience)
+   Theme: Burgundy & White
+   ========================================================================== */
+
+.rider-view-container {
+  max-width: 580px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Rider Profile Hero Card */
+.rider-hero-card {
+  background: linear-gradient(135deg, var(--burgundy-800) 0%, var(--burgundy-700) 50%, var(--burgundy-900) 100%);
+  color: #fff;
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-burgundy);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.rider-hero-card::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.rider-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.rider-avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rider-avatar-large {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid var(--gold-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.rider-title-info h2 {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.rider-meta-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.rider-id-pill {
+  background: var(--gold-400);
+  color: var(--burgundy-900);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.04em;
+}
+
+.rider-hub-pill {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.rider-date-clock {
+  text-align: right;
+}
+
+.rider-live-time {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.rider-live-date {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+}
+
+/* Shift Action Central Card */
+.shift-action-card {
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  padding: 26px 20px;
+  text-align: center;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.shift-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+}
+
+.shift-status-pill.offline {
+  background: #F3ECE9;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.shift-status-pill.active {
+  background: var(--emerald-100);
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.shift-status-pill.completed {
+  background: var(--burgundy-100);
+  color: var(--burgundy-700);
+  border: 1px solid rgba(107, 23, 36, 0.2);
+}
+
+/* Big Start Day Button */
+.btn-start-shift {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  font-size: 19px;
+  font-weight: 800;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, var(--burgundy-600) 0%, var(--burgundy-700) 50%, var(--burgundy-800) 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 10px 28px rgba(107, 23, 36, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-start-shift:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 14px 34px rgba(107, 23, 36, 0.45);
+}
+
+.btn-start-shift:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn-start-shift .btn-main-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+}
+
+.btn-start-shift .btn-sub-label {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* Active Shift Timer Display */
+.active-shift-timer-box {
+  background: var(--burgundy-50);
+  border: 1.5px dashed var(--burgundy-700);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  margin-bottom: 22px;
+}
+
+.timer-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--burgundy-700);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.live-elapsed-clock {
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--burgundy-900);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.shift-start-stamp {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Big End Day Button */
+.btn-end-shift {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 18px 24px;
+  font-size: 18px;
+  font-weight: 800;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, #DC2626 0%, var(--burgundy-700) 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-end-shift:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.4);
+}
+
+/* Completed Shift Banner in Rider Card */
+.completed-shift-banner {
+  background: var(--burgundy-50);
+  border: 1px solid var(--burgundy-100);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  text-align: left;
+}
+
+.completed-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.completed-stat-cell {
+  background: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+
+.completed-stat-cell .label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.completed-stat-cell .value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--burgundy-900);
+  margin-top: 2px;
+}
+
+/* EOD Form Specific Styles */
+.eod-currency-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.eod-currency-symbol {
+  position: absolute;
+  left: 14px;
+  font-weight: 800;
+  color: var(--burgundy-700);
+  font-size: 15px;
+}
+
+.eod-currency-input-wrap .form-input {
+  padding-left: 54px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--burgundy-900);
+}
+
+.metrics-input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.metric-field-box {
+  background: var(--surface-card-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.metric-field-box .form-label {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.metric-field-box .form-input {
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.eod-calc-preview {
+  background: var(--burgundy-50);
+  border: 1px solid var(--burgundy-100);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--burgundy-800);
+}
+
+/* Shift History Timeline */
+.history-card {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  padding: 18px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.history-date {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--burgundy-900);
+}
+
+.history-time-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.history-metrics-pills {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.history-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--burgundy-50);
+  color: var(--burgundy-800);
+}
+
+.history-pill.cod {
+  background: var(--emerald-100);
+  color: #065F46;
+}
