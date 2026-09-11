@@ -2,10 +2,13 @@
 import { store } from "./store.js";
 import { auth } from "./auth.js";
 
-let activeTab = "roster"; // "roster", "riders", "reports"
+let activeTab = "roster"; // "roster", "riders", "reports", "weekly"
 let searchQuery = "";
 let selectedDateFilter = "";
 let selectedRiderFilter = "ALL";
+let selectedWeekOffset = 0; // 0 = current week, -1 = last week, +1 = next week
+let weeklySearchQuery = "";
+let weeklyHubFilter = "ALL";
 let editingRiderId = null;
 let deletingRiderId = null;
 let liveRosterInterval = null;
@@ -44,6 +47,8 @@ export const AdminPortal = {
       tabContentHtml = this.renderRidersCrudTab(riders);
     } else if (activeTab === "reports") {
       tabContentHtml = this.renderReportsTab(shifts, riders);
+    } else if (activeTab === "weekly") {
+      tabContentHtml = this.renderWeeklyReportsTab(shifts, riders);
     }
 
     container.innerHTML = `
@@ -102,11 +107,15 @@ export const AdminPortal = {
               📡 Live Shift Feed & Timestamps
               <span class="count-badge">${activeRidersCount} Active</span>
             </button>
+            <button class="admin-tab-btn ${activeTab === 'weekly' ? 'active' : ''}" data-tab="weekly">
+              📅 Weekly Attendance & COD Report
+              <span class="count-badge" style="background: var(--gold-500); color: #fff;">Weekly</span>
+            </button>
             <button class="admin-tab-btn ${activeTab === 'riders' ? 'active' : ''}" data-tab="riders">
               👥 Rider Accounts (${riders.length})
             </button>
             <button class="admin-tab-btn ${activeTab === 'reports' ? 'active' : ''}" data-tab="reports">
-              📑 End-of-Day Shift Reports (${shifts.length})
+              📑 Daily Shift Logs (${shifts.length})
             </button>
           </div>
         </div>
@@ -448,6 +457,239 @@ export const AdminPortal = {
   },
 
   // ==========================================
+  // TAB 4: WEEKLY ATTENDANCE & COD REPORT
+  // ==========================================
+  getWeekBounds(offsetWeeks = 0) {
+    const now = new Date();
+    // Monday = day 1. JS Sunday = 0, so shift accordingly.
+    const dayOfWeek = (now.getDay() + 6) % 7; // Mon=0 ... Sun=6
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dayOfWeek + offsetWeeks * 7);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return { monday, sunday };
+  },
+
+  getWeekDays(monday) {
+    const days = [];
+    const LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push({
+        label: LABELS[i],
+        iso: d.toISOString().split('T')[0],
+        display: d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      });
+    }
+    return days;
+  },
+
+  renderWeeklyReportsTab(allShifts, riders) {
+    const { monday, sunday } = this.getWeekBounds(selectedWeekOffset);
+    const weekDays = this.getWeekDays(monday);
+
+    const fmtDate = (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    const weekLabel = `${fmtDate(monday)} – ${fmtDate(sunday)}`;
+    const isCurrentWeek = selectedWeekOffset === 0;
+
+    // Filter shifts that fall within this week
+    const weekShifts = allShifts.filter(s => {
+      const d = new Date(s.startTimestamp || s.date);
+      return d >= monday && d <= sunday;
+    });
+
+    // Fleet-wide weekly KPIs
+    const weekTotalCod    = weekShifts.reduce((s, sh) => s + (parseFloat(sh.codAmount) || 0), 0);
+    const weekTotalDays   = new Set(weekShifts.map(s => (s.startTimestamp || s.date || '').slice(0, 10))).size;
+    const weekDeliveries  = weekShifts.reduce((s, sh) => s + (parseInt(sh.successfulDeliveries) || 0), 0);
+    const weekAssigned    = weekShifts.reduce((s, sh) => s + (parseInt(sh.assignedDeliveries) || 0), 0);
+    const weekPickups     = weekShifts.reduce((s, sh) => s + (parseInt(sh.pickupOrders) || 0), 0);
+    const activeRiders    = new Set(weekShifts.map(s => s.riderId)).size;
+
+    // Per-rider weekly breakdown
+    let filteredRiders = riders;
+    if (weeklySearchQuery) {
+      const q = weeklySearchQuery.toLowerCase();
+      filteredRiders = riders.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        r.riderId.toLowerCase().includes(q) ||
+        (r.hub || '').toLowerCase().includes(q)
+      );
+    }
+    if (weeklyHubFilter !== 'ALL') {
+      filteredRiders = filteredRiders.filter(r => r.hub === weeklyHubFilter);
+    }
+
+    const uniqueHubs = [...new Set(riders.map(r => r.hub).filter(Boolean))];
+
+    let tableRows = '';
+    filteredRiders.forEach(rider => {
+      const riderShifts = weekShifts.filter(s => s.riderId === rider.riderId || s.riderDocId === rider.id);
+      const workedDays = new Set(riderShifts.map(s => (s.startTimestamp || s.date || '').slice(0, 10)));
+      const daysCount  = workedDays.size;
+      const totalCod   = riderShifts.reduce((s, sh) => s + (parseFloat(sh.codAmount) || 0), 0);
+      const totalDel   = riderShifts.reduce((s, sh) => s + (parseInt(sh.successfulDeliveries) || 0), 0);
+      const totalAsgn  = riderShifts.reduce((s, sh) => s + (parseInt(sh.assignedDeliveries) || 0), 0);
+      const totalPkup  = riderShifts.reduce((s, sh) => s + (parseInt(sh.pickupOrders) || 0), 0);
+      const successPct = totalAsgn > 0 ? Math.round((totalDel / totalAsgn) * 100) : (totalDel > 0 ? 100 : 0);
+
+      // Progress bar colour
+      const pct = (daysCount / 7) * 100;
+      const barClass = pct >= 70 ? '' : pct >= 40 ? 'warning' : 'danger';
+
+      // Build 7-day strip
+      const dayBoxes = weekDays.map(day => {
+        const present = workedDays.has(day.iso);
+        const dayShifts = riderShifts.filter(s => (s.startTimestamp || s.date || '').startsWith(day.iso));
+        const dayCod = dayShifts.reduce((s, sh) => s + (parseFloat(sh.codAmount) || 0), 0);
+        const codLabel = present && dayCod > 0 ? `GH₵${dayCod.toFixed(0)}` : '';
+        return `
+          <div class="attendance-day-box ${present ? 'present' : 'absent'}" title="${day.label} ${day.display}${present ? ' – Worked' + (dayCod > 0 ? ', COD: GH₵' + dayCod.toFixed(2) : '') : ' – Off'}">
+            <span class="day-lbl">${day.label}</span>
+            <span class="day-status-icon">${present ? '✅' : '—'}</span>
+            ${codLabel ? `<span class="day-cod">${codLabel}</span>` : ''}
+          </div>`;
+      }).join('');
+
+      tableRows += `
+        <tr>
+          <td>
+            <div class="rider-cell">
+              <div class="rider-avatar-sm">${rider.name.charAt(0)}</div>
+              <div>
+                <div class="rider-name-cell">${escapeHtml(rider.name)}</div>
+                <div class="rider-id-sub">${escapeHtml(rider.riderId)} • ${escapeHtml(rider.hub || '')}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="attendance-week-strip">${dayBoxes}</div>
+          </td>
+          <td>
+            <div class="days-worked-badge">
+              <div class="days-worked-text">${daysCount} / 7 Days</div>
+              <div class="days-progress-bar-bg">
+                <div class="days-progress-bar-fill ${barClass}" style="width:${pct.toFixed(0)}%"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="weekly-cod-cell">GH₵ ${totalCod.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div class="weekly-cod-sub">${riderShifts.length} shift${riderShifts.length !== 1 ? 's' : ''} logged</div>
+          </td>
+          <td>
+            <strong>${totalDel}</strong> / ${totalAsgn}
+            <span style="font-size:11px;font-weight:700;color:${successPct>=90?'#065F46':'var(--amber-500)'}">(${successPct}%)</span>
+          </td>
+          <td><strong>${totalPkup}</strong> orders</td>
+        </tr>`;
+    });
+
+    return `
+      <!-- Week Navigation Banner -->
+      <div class="week-nav-card">
+        <div class="week-nav-controls">
+          <button class="week-nav-btn" id="btn-week-prev">◀ Prev Week</button>
+          <button class="week-nav-btn" id="btn-week-today" ${isCurrentWeek ? 'disabled style="opacity:0.5;cursor:default"' : ''}>This Week</button>
+          <button class="week-nav-btn" id="btn-week-next" ${selectedWeekOffset >= 0 ? 'disabled style="opacity:0.5;cursor:default"' : ''}>Next Week ▶</button>
+        </div>
+        <div class="week-range-display">
+          📅 ${weekLabel}
+          ${isCurrentWeek ? '<span class="week-range-pill">Current Week</span>' : ''}
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="week-nav-btn" id="btn-weekly-print">🖨️ Print</button>
+          <button class="week-nav-btn" id="btn-export-weekly-csv">📥 Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Weekly KPI Summary -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap kpi-icon-burgundy"><span>💰</span></div>
+          <div class="kpi-content">
+            <div class="kpi-label">Total Weekly COD</div>
+            <div class="kpi-value" style="font-size:20px;">GH₵ ${weekTotalCod.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+            <div class="kpi-sub">Across all closed shifts this week</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap kpi-icon-green"><span>📅</span></div>
+          <div class="kpi-content">
+            <div class="kpi-label">Rider Shift Days Logged</div>
+            <div class="kpi-value" style="font-size:20px;">${weekShifts.length} <span style="font-size:13px;color:var(--text-muted);">shifts</span></div>
+            <div class="kpi-sub">${activeRiders} riders worked this week</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap kpi-icon-amber"><span>📦</span></div>
+          <div class="kpi-content">
+            <div class="kpi-label">Weekly Deliveries</div>
+            <div class="kpi-value" style="font-size:20px;">${weekDeliveries} <span style="font-size:13px;color:var(--text-muted);">/ ${weekAssigned}</span></div>
+            <div class="kpi-sub">${weekAssigned > 0 ? Math.round((weekDeliveries/weekAssigned)*100)+'% success rate' : 'No deliveries'}</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap kpi-icon-blue"><span>🔄</span></div>
+          <div class="kpi-content">
+            <div class="kpi-label">Weekly Pickups</div>
+            <div class="kpi-value" style="font-size:20px;">${weekPickups}</div>
+            <div class="kpi-sub">Merchant & return items</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Table -->
+      <div class="card">
+        <div class="section-header-bar">
+          <div class="section-title-wrap">
+            <h2>📋 Rider Weekly Attendance & COD Breakdown</h2>
+            <p>Mon–Sun attendance per rider for <strong>${weekLabel}</strong>. Green = worked, grey = off.</p>
+          </div>
+        </div>
+
+        <div class="filter-toolbar" style="margin-bottom:16px;">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="weekly-search-riders" class="form-input" placeholder="Search rider name, ID, hub..." value="${escapeHtml(weeklySearchQuery)}">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;">FILTER HUB</label>
+            <select id="weekly-hub-filter" class="form-select" style="padding:6px 10px;font-size:13px;">
+              <option value="ALL" ${weeklyHubFilter==='ALL'?'selected':''}>All Hubs</option>
+              ${uniqueHubs.map(h=>`<option value="${escapeHtml(h)}" ${weeklyHubFilter===h?'selected':''}>${escapeHtml(h)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="font-size:13px;color:var(--text-secondary);">
+            Showing <strong>${filteredRiders.length}</strong> of ${riders.length} riders
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="table-weekly-data">
+            <thead>
+              <tr>
+                <th>Rider</th>
+                <th>Weekly Attendance (Mon → Sun)</th>
+                <th>Days Worked</th>
+                <th>Total Weekly COD</th>
+                <th>Deliveries</th>
+                <th>Pickups</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows || '<tr><td colspan="6" class="empty-state">No shift records found for this week.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  // ==========================================
   // EVENT HANDLERS & MODAL MANAGEMENT
   // ==========================================
   attachEventListeners(container) {
@@ -555,6 +797,67 @@ export const AdminPortal = {
       printBtn.addEventListener("click", () => {
         window.print();
       });
+    }
+
+    // --- Weekly Tab Event Listeners ---
+    const btnPrev = document.getElementById("btn-week-prev");
+    if (btnPrev) {
+      btnPrev.addEventListener("click", () => {
+        selectedWeekOffset -= 1;
+        this.render(container);
+      });
+    }
+
+    const btnToday = document.getElementById("btn-week-today");
+    if (btnToday) {
+      btnToday.addEventListener("click", () => {
+        selectedWeekOffset = 0;
+        this.render(container);
+      });
+    }
+
+    const btnNext = document.getElementById("btn-week-next");
+    if (btnNext) {
+      btnNext.addEventListener("click", () => {
+        if (selectedWeekOffset < 0) {
+          selectedWeekOffset += 1;
+          this.render(container);
+        }
+      });
+    }
+
+    const weeklySearch = document.getElementById("weekly-search-riders");
+    if (weeklySearch) {
+      weeklySearch.addEventListener("input", (e) => {
+        weeklySearchQuery = e.target.value;
+        const bodyEl = document.getElementById("admin-tab-container");
+        if (bodyEl) {
+          bodyEl.innerHTML = this.renderWeeklyReportsTab(store.getShifts(), store.getRiders());
+          this.attachEventListeners(container);
+        }
+      });
+    }
+
+    const weeklyHub = document.getElementById("weekly-hub-filter");
+    if (weeklyHub) {
+      weeklyHub.addEventListener("change", (e) => {
+        weeklyHubFilter = e.target.value;
+        const bodyEl = document.getElementById("admin-tab-container");
+        if (bodyEl) {
+          bodyEl.innerHTML = this.renderWeeklyReportsTab(store.getShifts(), store.getRiders());
+          this.attachEventListeners(container);
+        }
+      });
+    }
+
+    const weeklyPrint = document.getElementById("btn-weekly-print");
+    if (weeklyPrint) {
+      weeklyPrint.addEventListener("click", () => window.print());
+    }
+
+    const weeklyExport = document.getElementById("btn-export-weekly-csv");
+    if (weeklyExport) {
+      weeklyExport.addEventListener("click", () => this.exportWeeklyReportsToCsv());
     }
   },
 
@@ -751,6 +1054,91 @@ export const AdminPortal = {
 
     window.dispatchEvent(new CustomEvent("watchdog-toast", {
       detail: { message: "📥 Shift report CSV downloaded successfully!", type: "success" }
+    }));
+  },
+
+  exportWeeklyReportsToCsv() {
+    const allShifts = store.getShifts();
+    const riders    = store.getRiders();
+    const { monday, sunday } = this.getWeekBounds(selectedWeekOffset);
+    const weekDays  = this.getWeekDays(monday);
+
+    const weekShifts = allShifts.filter(s => {
+      const d = new Date(s.startTimestamp || s.date);
+      return d >= monday && d <= sunday;
+    });
+
+    if (weekShifts.length === 0 && riders.length === 0) {
+      alert("No data available to export for this week.");
+      return;
+    }
+
+    const fmtDate = (d) => d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    const weekLabel = `${fmtDate(monday)} – ${fmtDate(sunday)}`;
+
+    const headers = [
+      "Rider ID",
+      "Rider Name",
+      "Hub / Station",
+      ...weekDays.map(d => `${d.label} (${d.iso})`),
+      "Days Worked",
+      "Total Weekly COD (GHS)",
+      "Assigned Deliveries",
+      "Successful Deliveries",
+      "Delivery Success Rate (%)",
+      "Pickup Orders"
+    ];
+
+    const rows = riders.map(rider => {
+      const riderShifts = weekShifts.filter(s => s.riderId === rider.riderId || s.riderDocId === rider.id);
+      const workedDays  = new Set(riderShifts.map(s => (s.startTimestamp || s.date || '').slice(0, 10)));
+      const daysCount   = workedDays.size;
+      const totalCod    = riderShifts.reduce((s, sh) => s + (parseFloat(sh.codAmount) || 0), 0);
+      const totalDel    = riderShifts.reduce((s, sh) => s + (parseInt(sh.successfulDeliveries) || 0), 0);
+      const totalAsgn   = riderShifts.reduce((s, sh) => s + (parseInt(sh.assignedDeliveries) || 0), 0);
+      const totalPkup   = riderShifts.reduce((s, sh) => s + (parseInt(sh.pickupOrders) || 0), 0);
+      const successPct  = totalAsgn > 0 ? Math.round((totalDel / totalAsgn) * 100) : (totalDel > 0 ? 100 : 0);
+
+      const dayCells = weekDays.map(day => {
+        const present = workedDays.has(day.iso);
+        const dayCod  = riderShifts
+          .filter(s => (s.startTimestamp || s.date || '').startsWith(day.iso))
+          .reduce((s, sh) => s + (parseFloat(sh.codAmount) || 0), 0);
+        return present ? `"Worked${dayCod > 0 ? ' (GH₵' + dayCod.toFixed(2) + ')' : ''}"` : '"Off"';
+      });
+
+      return [
+        `"${rider.riderId}"`,
+        `"${rider.name.replace(/"/g, '""')}"`,
+        `"${(rider.hub || '').replace(/"/g, '""')}"`,
+        ...dayCells,
+        daysCount,
+        totalCod.toFixed(2),
+        totalAsgn,
+        totalDel,
+        successPct + "%",
+        totalPkup
+      ].join(",");
+    });
+
+    const weekFilename = monday.toISOString().split('T')[0] + '_to_' + sunday.toISOString().split('T')[0];
+    const csvContent = "\uFEFF" + [
+      `"WatchDog Weekly Report – ${weekLabel}"`,
+      headers.join(","),
+      ...rows
+    ].join("\r\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `WatchDog_Weekly_Report_${weekFilename}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.dispatchEvent(new CustomEvent("watchdog-toast", {
+      detail: { message: "📥 Weekly attendance & COD report exported!", type: "success" }
     }));
   }
 };
