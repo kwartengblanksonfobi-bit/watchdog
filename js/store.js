@@ -294,6 +294,64 @@ class DataStore {
     return true;
   }
 
+  // Create a fully-completed shift record manually (admin backfill for late-onboarded riders)
+  async createManualShift(riderId, shiftData) {
+    const rider = this.getRiderById(riderId);
+    if (!rider) throw new Error("Rider not found");
+
+    const shiftId = "shift_manual_" + Date.now();
+
+    // Build ISO timestamps from date + time strings
+    const dateStr    = shiftData.date;           // "YYYY-MM-DD"
+    const startTime  = shiftData.startTime || "08:00";
+    const endTime    = shiftData.endTime   || "17:00";
+    const startIso   = new Date(`${dateStr}T${startTime}:00`).toISOString();
+    const endIso     = new Date(`${dateStr}T${endTime}:00`).toISOString();
+    const startMs    = new Date(startIso).getTime();
+    const endMs      = new Date(endIso).getTime();
+    const durationMinutes = Math.max(1, Math.round((endMs - startMs) / 60000));
+    const nowIso     = new Date().toISOString();
+
+    const manualShift = {
+      id:                   shiftId,
+      riderId:              rider.riderId,
+      riderDocId:           rider.id,
+      riderName:            rider.name,
+      riderPhone:           rider.phone,
+      vehicle:              rider.vehicle,
+      hub:                  rider.hub,
+      date:                 dateStr,
+      startTimestamp:       startIso,
+      endTimestamp:         endIso,
+      durationMinutes:      durationMinutes,
+      status:               "COMPLETED",
+      codAmount:            parseFloat(shiftData.codAmount || 0),
+      assignedDeliveries:   parseInt(shiftData.assignedDeliveries || 0, 10),
+      successfulDeliveries: parseInt(shiftData.successfulDeliveries || 0, 10),
+      pickupOrders:         parseInt(shiftData.pickupOrders || 0, 10),
+      notes:                (shiftData.notes || "").trim(),
+      locationStart:        rider.hub,
+      isManualEntry:        true,
+      createdByAdmin:       true,
+      submittedAt:          nowIso,
+      createdAt:            nowIso
+    };
+
+    const updatedShifts = [manualShift, ...this.shifts];
+    this.saveLocalShifts(updatedShifts);
+
+    if (isFirestoreAvailable && db) {
+      try {
+        await setDoc(doc(db, SHIFTS_COLLECTION, shiftId), manualShift);
+      } catch (err) {
+        console.warn("Firestore createManualShift sync warning:", err);
+      }
+    }
+
+    return manualShift;
+  }
+
+
   // ==========================================
   // SHIFT & ATTENDANCE LOG OPERATIONS
   // ==========================================

@@ -313,8 +313,93 @@
     </div>
   </div>
 
+  <!-- ================================================================= -->
+  <!-- MODAL: ADMIN MANUAL ATTENDANCE ENTRY                             -->
+  <!-- ================================================================= -->
+  <div class="modal-backdrop" id="modal-manual-attendance">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header-burgundy" style="background: linear-gradient(135deg, #1E40AF 0%, #1D4ED8 100%);">
+        <h3>📝 Manual Attendance Entry</h3>
+        <button type="button" class="modal-close-btn modal-close-trigger">&#215;</button>
+      </div>
+
+      <form id="manual-attendance-form">
+        <div class="modal-body">
+          <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; font-size: 13px; color: #1E40AF;">
+            <strong>📌 Backfill attendance</strong> for riders who were not yet onboarded when their shift occurred. This creates a completed shift record on their behalf.
+          </div>
+
+          <!-- Rider (pre-filled, read-only label) -->
+          <div class="form-group">
+            <label class="form-label">Rider</label>
+            <div id="manual-rider-display" style="background: var(--burgundy-50); border: 1px solid var(--border-light); border-radius: 10px; padding: 10px 14px; font-weight: 700; color: var(--burgundy-900); font-size: 14px;"></div>
+            <input type="hidden" id="manual-rider-id">
+          </div>
+
+          <!-- Date picker -->
+          <div class="form-group">
+            <label class="form-label" for="manual-date">📅 Date of Attendance <span class="required">*</span></label>
+            <input type="date" id="manual-date" class="form-input" required>
+            <div class="form-hint">Select the date the rider actually worked.</div>
+          </div>
+
+          <!-- Shift times grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label" for="manual-start-time">🕒 Start Time</label>
+              <input type="time" id="manual-start-time" class="form-input" value="08:00">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="manual-end-time">🕔 End Time</label>
+              <input type="time" id="manual-end-time" class="form-input" value="17:00">
+            </div>
+          </div>
+
+          <!-- COD -->
+          <div class="form-group">
+            <label class="form-label" for="manual-cod">💰 Total COD Collected <span class="required">*</span></label>
+            <div class="eod-currency-input-wrap">
+              <span class="eod-currency-symbol">GH₵</span>
+              <input type="number" id="manual-cod" class="form-input" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+          </div>
+
+          <!-- Deliveries & pickups grid -->
+          <div class="metrics-input-grid">
+            <div class="metric-field-box">
+              <label class="form-label" for="manual-assigned">📦 Assigned Deliveries <span class="required">*</span></label>
+              <input type="number" id="manual-assigned" class="form-input" placeholder="0" min="0" required>
+            </div>
+            <div class="metric-field-box">
+              <label class="form-label" for="manual-successful">✅ Successful Deliveries <span class="required">*</span></label>
+              <input type="number" id="manual-successful" class="form-input" placeholder="0" min="0" required>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <label class="form-label" for="manual-pickups">🔄 Pickup Orders <span class="required">*</span></label>
+            <input type="number" id="manual-pickups" class="form-input" placeholder="0" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="manual-notes">📝 Admin Notes (Optional)</label>
+            <textarea id="manual-notes" class="form-textarea" rows="2" placeholder="e.g. Backfilled — rider onboarded late, worked 3-Sep-2026"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost modal-close-trigger">Cancel</button>
+          <button type="submit" id="btn-submit-manual-attendance" class="btn btn-primary" style="background: #1D4ED8;">
+            ✅ Save Attendance Record
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
+
 
   <!-- Main JavaScript App Entry -->
   <script type="module" src="./js/app.js"></script>

@@ -585,6 +585,15 @@ export const AdminPortal = {
             <span style="font-size:11px;font-weight:700;color:${successPct>=90?'#065F46':'var(--amber-500)'}">(${successPct}%)</span>
           </td>
           <td><strong>${totalPkup}</strong> orders</td>
+          <td>
+            <button class="btn btn-secondary btn-sm btn-manual-attendance"
+              data-rider-id="${rider.id}"
+              data-rider-name="${escapeHtml(rider.name)}"
+              data-rider-rid="${escapeHtml(rider.riderId)}"
+              style="white-space:nowrap;font-size:12px;">
+              📝 Manual Entry
+            </button>
+          </td>
         </tr>`;
     });
 
@@ -678,10 +687,11 @@ export const AdminPortal = {
                 <th>Total Weekly COD</th>
                 <th>Deliveries</th>
                 <th>Pickups</th>
+                <th>Backfill</th>
               </tr>
             </thead>
             <tbody>
-              ${tableRows || '<tr><td colspan="6" class="empty-state">No shift records found for this week.</td></tr>'}
+              ${tableRows || '<tr><td colspan="7" class="empty-state">No shift records found for this week.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -799,6 +809,17 @@ export const AdminPortal = {
       });
     }
 
+    // Manual Attendance buttons (Weekly tab)
+    container.querySelectorAll(".btn-manual-attendance").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this.openManualAttendanceModal(
+          btn.getAttribute("data-rider-id"),
+          btn.getAttribute("data-rider-name"),
+          btn.getAttribute("data-rider-rid")
+        );
+      });
+    });
+
     // --- Weekly Tab Event Listeners ---
     const btnPrev = document.getElementById("btn-week-prev");
     if (btnPrev) {
@@ -881,7 +902,73 @@ export const AdminPortal = {
   },
 
   // Modal Setup
+  openManualAttendanceModal(docId, riderName, riderId) {
+    // Pre-fill rider display
+    const display = document.getElementById("manual-rider-display");
+    const hiddenId = document.getElementById("manual-rider-id");
+    if (display) display.textContent = `${riderName}  (${riderId})`;
+    if (hiddenId) hiddenId.value = docId;
+
+    // Default date to today
+    const today = new Date().toISOString().split("T")[0];
+    const dateEl = document.getElementById("manual-date");
+    if (dateEl && !dateEl.value) dateEl.value = today;
+
+    // Reset fields
+    ["manual-cod","manual-assigned","manual-successful","manual-pickups"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    const notesEl = document.getElementById("manual-notes");
+    if (notesEl) notesEl.value = "";
+    document.getElementById("manual-start-time").value = "08:00";
+    document.getElementById("manual-end-time").value = "17:00";
+
+    document.getElementById("modal-manual-attendance")?.classList.add("active");
+    setTimeout(() => document.getElementById("manual-date")?.focus(), 120);
+  },
+
   bindGlobalModals() {
+    // Manual Attendance Form Submit
+    const manualForm = document.getElementById("manual-attendance-form");
+    if (manualForm) {
+      manualForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const riderId   = document.getElementById("manual-rider-id").value;
+        const date      = document.getElementById("manual-date").value;
+        const startTime = document.getElementById("manual-start-time").value;
+        const endTime   = document.getElementById("manual-end-time").value;
+        const codAmount = parseFloat(document.getElementById("manual-cod").value);
+        const assigned  = parseInt(document.getElementById("manual-assigned").value, 10);
+        const successful= parseInt(document.getElementById("manual-successful").value, 10);
+        const pickups   = parseInt(document.getElementById("manual-pickups").value, 10);
+        const notes     = document.getElementById("manual-notes").value;
+
+        if (!date) { alert("Please select a date."); return; }
+        if (isNaN(codAmount) || codAmount < 0) { alert("Please enter a valid COD amount."); return; }
+        if (isNaN(assigned) || assigned < 0)   { alert("Please enter assigned deliveries."); return; }
+        if (isNaN(successful)|| successful < 0){ alert("Please enter successful deliveries."); return; }
+        if (successful > assigned)              { alert("Successful deliveries cannot exceed assigned."); return; }
+        if (isNaN(pickups) || pickups < 0)     { alert("Please enter pickup orders."); return; }
+
+        const submitBtn = document.getElementById("btn-submit-manual-attendance");
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "⏳ Saving..."; }
+
+        try {
+          await store.createManualShift(riderId, { date, startTime, endTime, codAmount, assignedDeliveries: assigned, successfulDeliveries: successful, pickupOrders: pickups, notes });
+          document.getElementById("modal-manual-attendance")?.classList.remove("active");
+          window.dispatchEvent(new CustomEvent("watchdog-toast", {
+            detail: { message: `✅ Manual attendance saved for ${date}!`, type: "success" }
+          }));
+          this.render(document.getElementById("portal-content"));
+        } catch (err) {
+          alert("Error saving manual attendance: " + err.message);
+        } finally {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "✅ Save Attendance Record"; }
+        }
+      });
+    }
+
     // Create / Edit Rider Form Submit
     const riderForm = document.getElementById("rider-crud-form");
     if (riderForm) {
